@@ -15,105 +15,182 @@
  */
 package com.github.jcustenborder.kafka.config.aws;
 
+import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
+import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathRequest;
+import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathResult;
+import com.amazonaws.services.simplesystemsmanagement.model.Parameter;
+import org.apache.kafka.common.config.ConfigData;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.MockitoAnnotations.openMocks;
 
 public class SecretsManagerConfigProviderTest {
-  @Test
-  public void test() {
-    System.out.println("Hello World");
-  }
-  /*
-  AWSSecretsManager secretsManager;
-  SecretsManagerConfigProvider provider;
+
+  private SecretsManagerConfigProvider ssmConfigProvider;
+
+  @Mock
+  private AWSSimpleSystemsManagement ssmClient;
+
+  @Captor
+  private ArgumentCaptor<GetParametersByPathRequest> parameterCaptor;
+
+  private final Map<String, String> config = new HashMap<>();
 
   @BeforeEach
-  public void beforeEach() {
-    this.secretsManager = mock(AWSSecretsManager.class);
-    this.provider = new SecretsManagerConfigProvider();
-    this.provider.secretsManagerFactory = mock(SecretsManagerFactory.class);
-    when(this.provider.secretsManagerFactory.create(any())).thenReturn(this.secretsManager);
-    this.provider.configure(
-        ImmutableMap.of()
+  public void setup() {
+    config.put("environment", "unit-test");
+    try(final AutoCloseable ignored = openMocks(this)) {
+      ssmConfigProvider = new SecretsManagerConfigProvider();
+      ssmConfigProvider.setSsmClient(ssmClient);
+      ssmConfigProvider.configure(config);
+    } catch (final Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void should_blow_with_if_no_parameters_found() {
+
+    final List<String> expected = Arrays.asList(
+      "/global/",
+      "/unit-test/",
+      "/unit-test/path/"
     );
+
+    // just return empty objects here
+    when(ssmClient.getParametersByPath(any(GetParametersByPathRequest.class)))
+      .thenReturn(new GetParametersByPathResult());
+
+    try {
+      // no return value needed here:
+      ssmConfigProvider.get("path");
+    } catch (final Exception e) {
+      assertEquals(
+        "Parameter 'test/prefix/key' not found; for more information enable trace logging for com.hoopladigital.SsmConfigProvider",
+        e.getMessage()
+      );
+    }
+
+    verify(ssmClient, times(expected.size())).getParametersByPath(parameterCaptor.capture());
+    final List<GetParametersByPathRequest> allValues = parameterCaptor.getAllValues();
+    assertEquals(expected.size(), allValues.size());
+    for (int i = 0; i < allValues.size(); i++) {
+      final GetParametersByPathRequest value = allValues.get(i);
+      assertEquals(expected.get(i), value.getPath());
+    }
+
   }
 
   @Test
-  public void afterEach() throws IOException {
-    this.provider.close();
+  public void should_create_default_ssm_client() {
+
+    System.setProperty("aws.region", "us-east-1");
+    try (final SecretsManagerConfigProvider provider = new SecretsManagerConfigProvider()) {
+      provider.configure(config);
+      assertNotNull(provider.getSsmClient());
+      assertNotNull(provider.getEnvironment());
+    } finally {
+      System.clearProperty("aws.region");
+    }
+
   }
 
   @Test
-  public void notFound() {
-    Throwable expected = new ResourceNotFoundException("Resource 'not/found' was not found.");
-    when(secretsManager.getSecretValue(any())).thenThrow(expected);
-    ConfigException configException = assertThrows(ConfigException.class, () -> {
-      this.provider.get("not/found");
-    });
-    assertEquals(expected, configException.getCause());
-  }
+  public void should_get_value() {
 
-  @Test
-  public void decryptionFailure() {
-    Throwable expected = new DecryptionFailureException("Could not decrypt resource 'not/found'.");
-    when(secretsManager.getSecretValue(any())).thenThrow(expected);
-    ConfigException configException = assertThrows(ConfigException.class, () -> {
-      this.provider.get("not/found");
-    });
-    assertEquals(expected, configException.getCause());
-  }
-
-  @Test
-  public void get() {
-    final String secretName = "foo/bar/baz";
-    GetSecretValueResult result = new GetSecretValueResult()
-        .withName(secretName)
-        .withSecretString("{\n" +
-            "  \"username\": \"asdf\",\n" +
-            "  \"password\": \"asdf\"\n" +
-            "}");
-    Map<String, String> expected = ImmutableMap.of(
-        "username", "asdf",
-        "password", "asdf"
+    final List<String> expected = Arrays.asList(
+      "/global/",
+      "/unit-test/",
+      "/unit-test/path/"
     );
-    when(secretsManager.getSecretValue(any())).thenAnswer(invocationOnMock -> {
-      GetSecretValueRequest request =  invocationOnMock.getArgument(0);
-      assertEquals(secretName, request.getSecretId());
-      return result;
-    });
-    ConfigData configData = this.provider.get(secretName, ImmutableSet.of());
-    assertNotNull(configData);
-    assertEquals(expected, configData.data());
+    final String paramName = "key";
+    final String paramValue = "snapped the frame";
+
+    final GetParametersByPathResult pathValues = new GetParametersByPathResult();
+    final GetParametersByPathResult globalValues = new GetParametersByPathResult();
+    final GetParametersByPathResult response = new GetParametersByPathResult().withParameters(Arrays.asList(
+      new Parameter()
+        .withName(paramName)
+        .withValue(paramValue)
+    ));
+
+    when(ssmClient.getParametersByPath(any(GetParametersByPathRequest.class)))
+      .thenReturn(pathValues, response, globalValues);
+
+    final Set<String> foo = new HashSet<>();
+    foo.add(paramName);
+
+    final ConfigData actual = ssmConfigProvider.get("path", foo);
+
+    verify(ssmClient, times(expected.size())).getParametersByPath(parameterCaptor.capture());
+    final List<GetParametersByPathRequest> allValues = parameterCaptor.getAllValues();
+    assertEquals(expected.size(), allValues.size());
+    for (int i = 0; i < allValues.size(); i++) {
+      final GetParametersByPathRequest value = allValues.get(i);
+      assertEquals(expected.get(i), value.getPath());
+    }
+    Map<String,String> exxpected = new HashMap<>();
+    exxpected.put(paramName, paramValue);
+    assertEquals(new ConfigData(exxpected).data(), actual.data());
 
   }
+/*
+	@Test
+	public void should_get_value_without_environment() {
 
-  @Test
-  public void getPrefixed() {
-    this.provider.configure(
-        ImmutableMap.of(SecretsManagerConfigProviderConfig.PREFIX_CONFIG, "prefixed")
-    );
-    final String secretName = "foo/bar/baz";
-    final String prefixedName = "prefixed/foo/bar/baz";
-    GetSecretValueResult result = new GetSecretValueResult()
-        .withName(prefixedName)
-        .withSecretString("{\n" +
-            "  \"username\": \"asdf\",\n" +
-            "  \"password\": \"asdf\"\n" +
-            "}");
-    Map<String, String> expected = ImmutableMap.of(
-        "username", "asdf",
-        "password", "asdf"
-    );
-    when(secretsManager.getSecretValue(any())).thenAnswer(invocationOnMock -> {
-      GetSecretValueRequest request =  invocationOnMock.getArgument(0);
-      assertEquals(prefixedName, request.getSecretId());
-      return result;
-    });
-    ConfigData configData = this.provider.get(secretName, ImmutableSet.of());
-    assertNotNull(configData);
-    assertEquals(expected, configData.data());
+		final var expected = List.of(
+			"/global/",
+			"/path/"
+		);
 
-  }
+		final var paramName = "key";
+		final var paramValue = "snapped the frame";
 
+		// reconfigure the provided to NOT include environment
+		final var newConfig = new HashMap<>(config);
+		newConfig.put("addEnvironmentPrefix","false");
+		ssmConfigProvider.configure(newConfig);
 
+		final var pathValues = new GetParametersByPathResult();
+		final var globalValues = new GetParametersByPathResult();
+		final var response = new GetParametersByPathResult().withParameters(List.of(
+			new Parameter()
+				.withName(paramName)
+				.withValue(paramValue)
+		));
+
+		when(ssmClient.getParametersByPath(any(GetParametersByPathRequest.class)))
+			.thenReturn(pathValues, response, globalValues);
+
+		final var actual = ssmConfigProvider.get("path", Set.of(paramName));
+
+		verify(ssmClient, times(expected.size())).getParametersByPath(parameterCaptor.capture());
+		final var allValues = parameterCaptor.getAllValues();
+		assertEquals(expected.size(), allValues.size());
+		for (int i = 0; i < allValues.size(); i++) {
+			final var value = allValues.get(i);
+			assertEquals(expected.get(i), value.getPath());
+		}
+
+		assertEquals(new ConfigData(Map.of(paramName, paramValue)).data(), actual.data());
+
+	}
 */
+
 }

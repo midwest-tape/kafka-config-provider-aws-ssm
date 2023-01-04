@@ -24,6 +24,7 @@ import com.github.jcustenborder.kafka.connect.utils.config.Description;
 import com.github.jcustenborder.kafka.connect.utils.config.DocumentationSection;
 import com.github.jcustenborder.kafka.connect.utils.config.DocumentationSections;
 import com.github.jcustenborder.kafka.connect.utils.config.DocumentationTip;
+import lombok.Data;
 import org.apache.kafka.common.config.ConfigData;
 import org.apache.kafka.common.config.provider.ConfigProvider;
 import org.slf4j.Logger;
@@ -53,6 +54,7 @@ import java.util.Set;
             "")
     }
 )
+@Data
 public class SecretsManagerConfigProvider implements ConfigProvider {
   private static final Logger log = LoggerFactory.getLogger(SecretsManagerConfigProvider.class);
   // this is just a default, it can be overridden by the config
