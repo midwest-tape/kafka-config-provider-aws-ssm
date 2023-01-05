@@ -1,15 +1,15 @@
 package com.hoopladigital.kafka.config.aws;
 
-import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
-import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathRequest;
-import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathResult;
-import com.amazonaws.services.simplesystemsmanagement.model.Parameter;
 import org.apache.kafka.common.config.ConfigData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import software.amazon.awssdk.services.ssm.SsmClient;
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest;
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathResponse;
+import software.amazon.awssdk.services.ssm.model.Parameter;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,7 +29,7 @@ public class AwsSsmConfigProviderTest {
   private AwsSsmConfigProvider ssmConfigProvider;
 
   @Mock
-  private AWSSimpleSystemsManagement ssmClient;
+  private SsmClient ssmClient;
 
   @Captor
   private ArgumentCaptor<GetParametersByPathRequest> parameterCaptor;
@@ -39,7 +39,7 @@ public class AwsSsmConfigProviderTest {
   @BeforeEach
   public void setup() {
     config.put("environment", "unit-test");
-    try(final AutoCloseable ignored = openMocks(this)) {
+    try (final AutoCloseable ignored = openMocks(this)) {
       ssmConfigProvider = new AwsSsmConfigProvider();
       ssmConfigProvider.setSsmClient(ssmClient);
       ssmConfigProvider.configure(config);
@@ -59,7 +59,7 @@ public class AwsSsmConfigProviderTest {
 
     // just return empty objects here
     when(ssmClient.getParametersByPath(any(GetParametersByPathRequest.class)))
-      .thenReturn(new GetParametersByPathResult());
+      .thenReturn(GetParametersByPathResponse.builder().build());
 
     try {
       // no return value needed here:
@@ -76,7 +76,7 @@ public class AwsSsmConfigProviderTest {
     assertEquals(expected.size(), allValues.size());
     for (int i = 0; i < allValues.size(); i++) {
       final GetParametersByPathRequest value = allValues.get(i);
-      assertEquals(expected.get(i), value.getPath());
+      assertEquals(expected.get(i), value.path());
     }
 
   }
@@ -106,13 +106,16 @@ public class AwsSsmConfigProviderTest {
     final String paramName = "key";
     final String paramValue = "snapped the frame";
 
-    final GetParametersByPathResult pathValues = new GetParametersByPathResult();
-    final GetParametersByPathResult globalValues = new GetParametersByPathResult();
-    final GetParametersByPathResult response = new GetParametersByPathResult().withParameters(Arrays.asList(
-      new Parameter()
-        .withName(paramName)
-        .withValue(paramValue)
-    ));
+    final GetParametersByPathResponse pathValues = GetParametersByPathResponse.builder().build();
+    final GetParametersByPathResponse globalValues = GetParametersByPathResponse.builder().build();
+    final GetParametersByPathResponse response = GetParametersByPathResponse.builder()
+      .parameters(
+        Parameter.builder()
+          .name(paramName)
+          .value(paramValue)
+          .build()
+      )
+      .build();
 
     when(ssmClient.getParametersByPath(any(GetParametersByPathRequest.class)))
       .thenReturn(pathValues, response, globalValues);
@@ -127,9 +130,9 @@ public class AwsSsmConfigProviderTest {
     assertEquals(expected.size(), allValues.size());
     for (int i = 0; i < allValues.size(); i++) {
       final GetParametersByPathRequest value = allValues.get(i);
-      assertEquals(expected.get(i), value.getPath());
+      assertEquals(expected.get(i), value.path());
     }
-    Map<String,String> exxpected = new HashMap<>();
+    Map<String, String> exxpected = new HashMap<>();
     exxpected.put(paramName, paramValue);
     assertEquals(new ConfigData(exxpected).data(), actual.data());
 
