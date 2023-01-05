@@ -1,14 +1,14 @@
 package com.hoopladigital.kafka.config.aws;
 
-import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
-import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClient;
-import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder;
-import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathRequest;
-import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathResult;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.config.ConfigData;
 import org.apache.kafka.common.config.provider.ConfigProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ssm.SsmClient;
+import software.amazon.awssdk.services.ssm.SsmClientBuilder;
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest;
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,24 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-//@Description("This config provider is used to retrieve secrets from the AWS Secrets Manager service.")
-//@DocumentationTip("Config providers can be used with anything that supports the AbstractConfig base class that is shipped with Apache Kafka.")
-//@DocumentationSections(
-//    sections = {
-//        @DocumentationSection(title = "Secret Value", text = "The value for the secret must be formatted as a JSON object. " +
-//            "This allows multiple keys of data to be stored in a single secret. The name of the secret in AWS Secrets Manager " +
-//            "will correspond to the path that is requested by the config provider.\n" +
-//            "\n" +
-//            ".. code-block:: json\n" +
-//            "    :caption: Example Secret Value\n" +
-//            "\n" +
-//            "    {\n" +
-//            "      \"username\" : \"${secretManager:secret/test/some/connector:username}\",\n" +
-//            "      \"password\" : \"${secretManager:secret/test/some/connector:password}\"\n" +
-//            "    }\n" +
-//            "")
-//    }
-//)
 @Data
 @Slf4j
 public class AwsSsmConfigProvider implements ConfigProvider {
@@ -41,7 +23,7 @@ public class AwsSsmConfigProvider implements ConfigProvider {
   private long ttl = 1000 * 60 * 60; // 1 hour
   private String environment;
   private boolean addEnvironmentPrefix = true;
-  private AWSSimpleSystemsManagement ssmClient;
+  private SsmClient ssmClient;
 
   /**
    * This will return all parameters that match the path and environment.
@@ -98,15 +80,16 @@ public class AwsSsmConfigProvider implements ConfigProvider {
     log.trace("configuring SSM ConfigProvider with map: {}", map);
 
     if (ssmClient == null) {
+
       log.debug("creating SSM client");
-//            final var builder = SsmClient.builder();
-      final AWSSimpleSystemsManagementClientBuilder builder = AWSSimpleSystemsManagementClient.builder();
+
+      final SsmClientBuilder builder = SsmClient.builder();
 
       final Object configRegion = map.get("region");
       if (null != configRegion) {
         log.debug("using region from configuration: '{}'", configRegion);
         final String region = configRegion.toString();
-        builder.withRegion(region);
+        builder.region(Region.of(region));
       }
 
       ssmClient = builder.build();
@@ -147,7 +130,7 @@ public class AwsSsmConfigProvider implements ConfigProvider {
       paths.add(buildPath(path));
     }
 
-    final List<GetParametersByPathResult> responseList = new ArrayList<>();
+    final List<GetParametersByPathResponse> responseList = new ArrayList<>();
     for (final String s : paths) {
       responseList.add(getByPath(s));
     }
@@ -155,30 +138,26 @@ public class AwsSsmConfigProvider implements ConfigProvider {
     log.debug("merging all parameters");
     final Map<String, String> parameters = new HashMap<>();
 
-    for (final GetParametersByPathResult response : responseList) {
-      response.getParameters().forEach(p -> parameters.put(p.getName(), p.getValue()));
+    for (final GetParametersByPathResponse response : responseList) {
+      response.parameters().forEach(p -> parameters.put(p.name(), p.value()));
     }
 
     return parameters;
 
   }
 
-  private GetParametersByPathResult getByPath(
+  private GetParametersByPathResponse getByPath(
     final String connectPath
   ) {
     log.debug("getting parameters for path '{}'", connectPath);
-    final GetParametersByPathResult parameters = ssmClient.getParametersByPath(
-//        GetParametersByPathRequest.builder()
-//            .path(connectPath)
-//            .withDecryption(true)
-//            .recursive(false)
-//            .build()
-      new GetParametersByPathRequest()
-        .withPath(connectPath)
-        .withWithDecryption(true)
-        .withRecursive(false)
+    final GetParametersByPathResponse parameters = ssmClient.getParametersByPath(
+        GetParametersByPathRequest.builder()
+            .path(connectPath)
+            .withDecryption(true)
+            .recursive(false)
+            .build()
     );
-    log.debug("found {} parameters for path '{}'", parameters.getParameters().size(), connectPath);
+    log.debug("found {} parameters for path '{}'", parameters.parameters().size(), connectPath);
     return parameters;
   }
 
