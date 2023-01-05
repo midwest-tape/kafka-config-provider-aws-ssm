@@ -137,7 +137,7 @@ public class AwsSsmConfigProviderTest {
     assertEquals(new ConfigData(exxpected).data(), actual.data());
 
   }
-/*
+
 	@Test
 	public void should_get_value_without_environment() {
 
@@ -154,13 +154,16 @@ public class AwsSsmConfigProviderTest {
 		newConfig.put("addEnvironmentPrefix","false");
 		ssmConfigProvider.configure(newConfig);
 
-		final var pathValues = new GetParametersByPathResult();
-		final var globalValues = new GetParametersByPathResult();
-		final var response = new GetParametersByPathResult().withParameters(List.of(
-			new Parameter()
-				.withName(paramName)
-				.withValue(paramValue)
-		));
+		final var pathValues = GetParametersByPathResponse.builder().build();
+		final var globalValues = GetParametersByPathResponse.builder().build();
+        final var response = GetParametersByPathResponse.builder()
+            .parameters(
+                Parameter.builder()
+                    .name(paramName)
+                    .value(paramValue)
+                    .build()
+            )
+            .build();
 
 		when(ssmClient.getParametersByPath(any(GetParametersByPathRequest.class)))
 			.thenReturn(pathValues, response, globalValues);
@@ -172,12 +175,12 @@ public class AwsSsmConfigProviderTest {
 		assertEquals(expected.size(), allValues.size());
 		for (int i = 0; i < allValues.size(); i++) {
 			final var value = allValues.get(i);
-			assertEquals(expected.get(i), value.getPath());
+			assertEquals(expected.get(i), value.path());
 		}
 
 		assertEquals(new ConfigData(Map.of(paramName, paramValue)).data(), actual.data());
 
 	}
-*/
+
 
 }

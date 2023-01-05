@@ -122,11 +122,9 @@ public class AwsSsmConfigProvider implements ConfigProvider {
     final List<String> paths = new ArrayList<>();
     if (addEnvironmentPrefix) {
       log.debug("adding environment prefix to path: {}", path);
-      paths.add(buildPath("global"));
       paths.add(buildPath(environment));
       paths.add(buildPath(environment, path));
     } else {
-      paths.add(buildPath("global"));
       paths.add(buildPath(path));
     }
 
