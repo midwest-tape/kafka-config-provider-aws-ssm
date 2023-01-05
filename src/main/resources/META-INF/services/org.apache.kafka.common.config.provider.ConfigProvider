@@ -1,1 +1,1 @@
-com.github.jcustenborder.kafka.config.aws.SecretsManagerConfigProvider
+com.hoopladigital.kafka.config.aws.AwsSsmConfigProvider

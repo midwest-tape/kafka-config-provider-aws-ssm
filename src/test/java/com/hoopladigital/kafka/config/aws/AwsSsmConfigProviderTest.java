@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.jcustenborder.kafka.config.aws;
+package com.hoopladigital.kafka.config.aws;
 
 import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathRequest;
@@ -37,12 +37,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
 import static org.mockito.MockitoAnnotations.openMocks;
 
-public class SecretsManagerConfigProviderTest {
+public class AwsSsmConfigProviderTest {
 
-  private SecretsManagerConfigProvider ssmConfigProvider;
+  private AwsSsmConfigProvider ssmConfigProvider;
 
   @Mock
   private AWSSimpleSystemsManagement ssmClient;
@@ -56,7 +55,7 @@ public class SecretsManagerConfigProviderTest {
   public void setup() {
     config.put("environment", "unit-test");
     try(final AutoCloseable ignored = openMocks(this)) {
-      ssmConfigProvider = new SecretsManagerConfigProvider();
+      ssmConfigProvider = new AwsSsmConfigProvider();
       ssmConfigProvider.setSsmClient(ssmClient);
       ssmConfigProvider.configure(config);
     } catch (final Exception e) {
@@ -101,7 +100,7 @@ public class SecretsManagerConfigProviderTest {
   public void should_create_default_ssm_client() {
 
     System.setProperty("aws.region", "us-east-1");
-    try (final SecretsManagerConfigProvider provider = new SecretsManagerConfigProvider()) {
+    try (final AwsSsmConfigProvider provider = new AwsSsmConfigProvider()) {
       provider.configure(config);
       assertNotNull(provider.getSsmClient());
       assertNotNull(provider.getEnvironment());

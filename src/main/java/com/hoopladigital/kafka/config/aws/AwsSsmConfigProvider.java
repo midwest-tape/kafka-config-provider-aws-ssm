@@ -13,22 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.jcustenborder.kafka.config.aws;
+package com.hoopladigital.kafka.config.aws;
 
 import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
 import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClient;
 import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder;
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathRequest;
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersByPathResult;
-import com.github.jcustenborder.kafka.connect.utils.config.Description;
-import com.github.jcustenborder.kafka.connect.utils.config.DocumentationSection;
-import com.github.jcustenborder.kafka.connect.utils.config.DocumentationSections;
-import com.github.jcustenborder.kafka.connect.utils.config.DocumentationTip;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.config.ConfigData;
 import org.apache.kafka.common.config.provider.ConfigProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,32 +31,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@Description("This config provider is used to retrieve secrets from the AWS Secrets Manager service.")
-@DocumentationTip("Config providers can be used with anything that supports the AbstractConfig base class that is shipped with Apache Kafka.")
-@DocumentationSections(
-    sections = {
-        @DocumentationSection(title = "Secret Value", text = "The value for the secret must be formatted as a JSON object. " +
-            "This allows multiple keys of data to be stored in a single secret. The name of the secret in AWS Secrets Manager " +
-            "will correspond to the path that is requested by the config provider.\n" +
-            "\n" +
-            ".. code-block:: json\n" +
-            "    :caption: Example Secret Value\n" +
-            "\n" +
-            "    {\n" +
-            "      \"username\" : \"${secretManager:secret/test/some/connector:username}\",\n" +
-            "      \"password\" : \"${secretManager:secret/test/some/connector:password}\"\n" +
-            "    }\n" +
-            "")
-    }
-)
+//@Description("This config provider is used to retrieve secrets from the AWS Secrets Manager service.")
+//@DocumentationTip("Config providers can be used with anything that supports the AbstractConfig base class that is shipped with Apache Kafka.")
+//@DocumentationSections(
+//    sections = {
+//        @DocumentationSection(title = "Secret Value", text = "The value for the secret must be formatted as a JSON object. " +
+//            "This allows multiple keys of data to be stored in a single secret. The name of the secret in AWS Secrets Manager " +
+//            "will correspond to the path that is requested by the config provider.\n" +
+//            "\n" +
+//            ".. code-block:: json\n" +
+//            "    :caption: Example Secret Value\n" +
+//            "\n" +
+//            "    {\n" +
+//            "      \"username\" : \"${secretManager:secret/test/some/connector:username}\",\n" +
+//            "      \"password\" : \"${secretManager:secret/test/some/connector:password}\"\n" +
+//            "    }\n" +
+//            "")
+//    }
+//)
 @Data
-public class SecretsManagerConfigProvider implements ConfigProvider {
-  private static final Logger log = LoggerFactory.getLogger(SecretsManagerConfigProvider.class);
+@Slf4j
+public class AwsSsmConfigProvider implements ConfigProvider {
   // this is just a default, it can be overridden by the config
   private long ttl = 1000 * 60 * 60; // 1 hour
   private String environment;
   private boolean addEnvironmentPrefix = true;
-//  private SsmClient ssmClient;
   private AWSSimpleSystemsManagement ssmClient;
 
   /**
@@ -96,11 +90,11 @@ public class SecretsManagerConfigProvider implements ConfigProvider {
     }
 
     log.debug(
-        "returning {} filtered parameters for path '{}' and {} keys ({})",
-        values.size(),
-        path,
-        keys.size(),
-        keys
+      "returning {} filtered parameters for path '{}' and {} keys ({})",
+      values.size(),
+      path,
+      keys.size(),
+      keys
     );
 
     return new ConfigData(values, ttl);
@@ -118,12 +112,6 @@ public class SecretsManagerConfigProvider implements ConfigProvider {
 
     log.trace("configuring SSM ConfigProvider with map: {}", map);
 
-    final Object configEnv = map.get("environment");
-    log.info("configuration defined environment as '{}'", configEnv);
-
-    environment = String.valueOf(configEnv);
-    log.info("configuring SSM ConfigProvider for environment: {}", environment);
-
     if (ssmClient == null) {
       log.debug("creating SSM client");
 //            final var builder = SsmClient.builder();
@@ -131,7 +119,7 @@ public class SecretsManagerConfigProvider implements ConfigProvider {
 
       final Object configRegion = map.get("region");
       if (null != configRegion) {
-        log.debug("using region from configuration: {}", configRegion);
+        log.debug("using region from configuration: '{}'", configRegion);
         final String region = configRegion.toString();
         builder.withRegion(region);
       }
@@ -149,6 +137,13 @@ public class SecretsManagerConfigProvider implements ConfigProvider {
     if (null != configAddEnvironmentPrefix) {
       log.info("using addEnvironmentPrefix from configuration: {}", configAddEnvironmentPrefix);
       addEnvironmentPrefix = Boolean.parseBoolean(configAddEnvironmentPrefix.toString());
+    }
+
+    if (addEnvironmentPrefix) {
+      final Object configEnv = map.get("environment");
+      log.info("configuration defined environment as '{}'", configEnv);
+      environment = String.valueOf(configEnv);
+      log.info("configuring SSM ConfigProvider for environment: '{}'", environment);
     }
 
   }
@@ -184,7 +179,7 @@ public class SecretsManagerConfigProvider implements ConfigProvider {
   }
 
   private GetParametersByPathResult getByPath(
-      final String connectPath
+    final String connectPath
   ) {
     log.debug("getting parameters for path '{}'", connectPath);
     final GetParametersByPathResult parameters = ssmClient.getParametersByPath(
@@ -193,7 +188,7 @@ public class SecretsManagerConfigProvider implements ConfigProvider {
 //            .withDecryption(true)
 //            .recursive(false)
 //            .build()
-        new GetParametersByPathRequest()
+      new GetParametersByPathRequest()
         .withPath(connectPath)
         .withWithDecryption(true)
         .withRecursive(false)
