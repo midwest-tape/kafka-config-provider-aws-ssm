@@ -4,19 +4,17 @@
   xmlns="http://maven.apache.org/POM/4.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <!-- TODO: Get this out of here; bring in only what is required. -->
-  <parent>
-    <groupId>com.github.jcustenborder.kafka.connect</groupId>
-    <artifactId>kafka-connect-parent</artifactId>
-    <version>2.8.0-1</version>
-  </parent>
 
+  <groupId>com.hoopladigital</groupId>
   <artifactId>kafka-config-provider-aws-ssm</artifactId>
   <version>1.0.0-SNAPSHOT</version>
+
   <name>kafka-config-provider-aws-ssm</name>
   <description>A Kafka ConfigProvider plugin for getting data from the AWS SSM parameter store.</description>
+
   <url>https://www.hoopladigital.com</url>
   <inceptionYear>2023</inceptionYear>
+
   <licenses>
     <license>
       <name>The Apache License, Version 2.0</name>
@@ -24,6 +22,7 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
+
   <developers>
     <developer>
       <id>lmeadors</id>
@@ -34,20 +33,26 @@
       </roles>
     </developer>
   </developers>
-  <!--  TODO: fix scm and issue management links BEGIN -->
+
   <scm>
-    <connection>scm:git:https://github.com/jcustenborder/kafka-config-provider-aws.git</connection>
-    <developerConnection>scm:git:git@github.com:jcustenborder/kafka-config-provider-aws.git
-    </developerConnection>
-    <url>https://github.com/jcustenborder/kafka-config-provider-aws</url>
+    <connection>scm:git:https://github.com/midwest-tape/kafka-config-provider-aws-ssm.git</connection>
+    <url>https://github.com/midwest-tape/kafka-config-provider-aws-ssm</url>
   </scm>
+
   <issueManagement>
     <system>github</system>
-    <url>https://github.com/jcustenborder/kafka-config-provider-aws/issues</url>
+    <url>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues</url>
   </issueManagement>
-  <!-- TODO: fix scm and issue management links END -->
+
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-bom</artifactId>
+        <version>4.8.0</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
       <dependency>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-java-sdk-bom</artifactId>
@@ -55,29 +60,76 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>5.9.1</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
   <dependencies>
-    <!--        <dependency>-->
-    <!--            <groupId>com.github.jcustenborder.kafka.connect</groupId>-->
-    <!--            <artifactId>connect-utils-jackson</artifactId>-->
-    <!--        </dependency>-->
+
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-ssm</artifactId>
     </dependency>
-    <!--    <dependency>-->
-    <!--      <groupId>com.amazonaws</groupId>-->
-    <!--      <artifactId>aws-java-sdk-sts</artifactId>-->
-    <!--    </dependency>-->
+
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.24</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-api</artifactId>
+      <version>3.3.1</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
+
   <build>
+
     <plugins>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <inherited>true</inherited>
+        <configuration>
+          <source>8</source>
+          <target>8</target>
+        </configuration>
+      </plugin>
+
       <plugin>
         <groupId>io.confluent</groupId>
         <artifactId>kafka-connect-maven-plugin</artifactId>
@@ -89,9 +141,11 @@
               <goal>kafka-connect</goal>
             </goals>
             <configuration>
+              <ownerName>Larry Meadors</ownerName>
+              <ownerUsername>hoopladigital</ownerUsername>
               <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
               <documentationUrl>
-                https://jcustenborder.github.io/kafka-connect-documentation/projects/kafka-config-provider-aws/
+                https://github.com/midwest-tape/kafka-config-provider-aws-ssm
               </documentationUrl>
               <componentTypes>
                 <componentType>converter</componentType>
@@ -101,12 +155,23 @@
                 <tag>ssm</tag>
               </tags>
               <title>Kafka AWS SSM Config Provider</title>
-              <supportUrl>https://github.com/jcustenborder/kafka-config-provider-aws/issues</supportUrl>
+              <supportUrl>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues</supportUrl>
               <supportSummary><![CDATA[Community Support]]></supportSummary>
             </configuration>
           </execution>
         </executions>
       </plugin>
+
     </plugins>
+
   </build>
+
+  <!-- I THINK this is needed for some plugins. -->
+  <repositories>
+    <repository>
+      <id>confluent</id>
+      <url>https://packages.confluent.io/maven/</url>
+    </repository>
+  </repositories>
+
 </project>
