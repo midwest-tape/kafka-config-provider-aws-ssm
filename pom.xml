@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-  xmlns="http://maven.apache.org/POM/4.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.hoopladigital</groupId>
   <artifactId>kafka-config-provider-aws-ssm</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
 
   <name>kafka-config-provider-aws-ssm</name>
   <description>A Kafka ConfigProvider plugin for getting data from the AWS SSM parameter store.</description>
@@ -156,7 +153,7 @@
               </tags>
               <title>Kafka AWS SSM Config Provider</title>
               <supportUrl>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues</supportUrl>
-              <supportSummary><![CDATA[Community Support]]></supportSummary>
+              <supportSummary>Community Support</supportSummary>
             </configuration>
           </execution>
         </executions>
