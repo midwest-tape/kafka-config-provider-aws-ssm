@@ -11,6 +11,9 @@ To build the plugin, run:
 mvn clean package
 ```
 
+> NOTE: This will NOT build with a Java 17 SDK; use Java 11. There is 
+> currently an incompatibility with the Confluent plugin and Java 17.
+
 The zip file you need to deploy is available under `target/components/packages/`. 
 
 You can manually extract this zip file which includes all dependencies. All 
