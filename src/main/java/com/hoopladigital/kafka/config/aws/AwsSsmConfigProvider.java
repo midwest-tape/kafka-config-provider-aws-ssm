@@ -122,11 +122,9 @@ public class AwsSsmConfigProvider implements ConfigProvider {
     final List<String> paths = new ArrayList<>();
     if (addEnvironmentPrefix) {
       log.debug("adding environment prefix to path: {}", path);
-      paths.add(buildPath("global"));
       paths.add(buildPath(environment));
       paths.add(buildPath(environment, path));
     } else {
-      paths.add(buildPath("global"));
       paths.add(buildPath(path));
     }
 
@@ -138,9 +136,19 @@ public class AwsSsmConfigProvider implements ConfigProvider {
     log.debug("merging all parameters");
     final Map<String, String> parameters = new HashMap<>();
 
-    for (final GetParametersByPathResponse response : responseList) {
-      response.parameters().forEach(p -> parameters.put(p.name(), p.value()));
-    }
+      for (final GetParametersByPathResponse response : responseList) {
+          response.parameters().forEach(p -> {
+              final var nameWithPath = p.name();
+              if (nameWithPath.contains("/")) {
+                  final var strings = nameWithPath.split("/");
+                  parameters.put(strings[strings.length - 1], p.value());
+              } else {
+                  parameters.put(nameWithPath, p.value());
+              }
+          });
+      }
+
+    log.trace("parameters: {}", parameters);
 
     return parameters;
 
