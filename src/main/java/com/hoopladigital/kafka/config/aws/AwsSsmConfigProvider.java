@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.ssm.SsmClientBuilder;
 import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest;
 import software.amazon.awssdk.services.ssm.model.GetParametersByPathResponse;
+import software.amazon.awssdk.services.ssm.model.Parameter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -154,20 +155,44 @@ public class AwsSsmConfigProvider implements ConfigProvider {
 
   }
 
-  private GetParametersByPathResponse getByPath(
-    final String connectPath
-  ) {
-    log.debug("getting parameters for path '{}'", connectPath);
-    final GetParametersByPathResponse parameters = ssmClient.getParametersByPath(
-        GetParametersByPathRequest.builder()
-            .path(connectPath)
-            .withDecryption(true)
-            .recursive(false)
-            .build()
-    );
-    log.debug("found {} parameters for path '{}'", parameters.parameters().size(), connectPath);
-    return parameters;
-  }
+    private GetParametersByPathResponse getByPath(final String connectPath) {
+
+        log.debug("getting parameters for path '{}'", connectPath);
+
+        final var responseList = new ArrayList<GetParametersByPathResponse>();
+
+        String nextToken = null;
+        boolean more;
+        do {
+
+            final GetParametersByPathResponse parameters = ssmClient.getParametersByPath(
+                GetParametersByPathRequest.builder()
+                    .path(connectPath)
+                    .nextToken(nextToken)
+                    .withDecryption(true)
+                    .recursive(false)
+                    .build()
+            );
+
+            more = parameters.nextToken() != null;
+            nextToken = parameters.nextToken();
+            responseList.add(parameters);
+            log.debug("found {} parameters for path '{}'", parameters.parameters().size(), connectPath);
+
+        } while (more);
+
+        final var parameters = new ArrayList<Parameter>();
+        for (final var r : responseList) {
+            parameters.addAll(r.parameters());
+        }
+
+        log.debug("found a total of {} parameters for path '{}'", parameters.size(), connectPath);
+
+        return GetParametersByPathResponse.builder()
+            .parameters(parameters)
+            .build();
+
+    }
 
   private String buildPath(final String... part) {
     return "/" + String.join("/", part) + "/";
