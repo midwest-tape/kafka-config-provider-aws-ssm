@@ -161,6 +161,7 @@ public class AwsSsmConfigProvider implements ConfigProvider {
     final GetParametersByPathResponse parameters = ssmClient.getParametersByPath(
         GetParametersByPathRequest.builder()
             .path(connectPath)
+            .maxResults(100)
             .withDecryption(true)
             .recursive(false)
             .build()
