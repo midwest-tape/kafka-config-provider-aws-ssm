@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.config.ConfigData;
 import org.apache.kafka.common.config.provider.ConfigProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.ssm.SsmClientBuilder;
@@ -92,6 +93,7 @@ public class AwsSsmConfigProvider implements ConfigProvider {
         final String region = configRegion.toString();
         builder.region(Region.of(region));
       }
+      builder.credentialsProvider(DefaultCredentialsProvider.create());
 
       ssmClient = builder.build();
     }
