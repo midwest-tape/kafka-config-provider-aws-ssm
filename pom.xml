@@ -5,7 +5,7 @@
 
     <groupId>com.hoopladigital</groupId>
     <artifactId>kafka-config-provider-aws-ssm</artifactId>
-    <version>1.2.15-SNAPSHOT</version>
+    <version>1.3.0</version>
 
     <name>kafka-config-provider-aws-ssm</name>
     <description>A Kafka ConfigProvider plugin for getting data from the AWS SSM parameter store.</description>
@@ -72,6 +72,30 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ssm</artifactId>
+            <exclusions>
+                <!-- only the sync client is used; keep a single HTTP implementation -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- required for IRSA (web identity credentials) on EKS -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
         </dependency>
 
         <dependency>
@@ -83,7 +107,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-api</artifactId>
-            <version>3.3.1</version>
+            <version>4.1.0</version>
             <scope>provided</scope>
         </dependency>
 
