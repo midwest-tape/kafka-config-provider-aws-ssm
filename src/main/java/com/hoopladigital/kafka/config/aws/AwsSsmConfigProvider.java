@@ -3,7 +3,12 @@ package com.hoopladigital.kafka.config.aws;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.config.ConfigData;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.config.provider.ConfigProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ssm.SsmClient;
 import software.amazon.awssdk.services.ssm.SsmClientBuilder;
@@ -16,12 +21,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Supplier;
 
 @Data
 @Slf4j
 public class AwsSsmConfigProvider implements ConfigProvider {
-  // this is just a default, it can be overridden by the config
-  private long ttl = 1000 * 60 * 60; // 1 hour
+  // no TTL by default: when a provider returns a TTL, Connect schedules a connector
+  // restart each time it expires. Set "ttl" (ms) only if parameters actually rotate.
+  private Long ttl;
   private String environment;
   private boolean addEnvironmentPrefix = true;
   private SsmClient ssmClient;
@@ -35,7 +43,7 @@ public class AwsSsmConfigProvider implements ConfigProvider {
   @Override
   public ConfigData get(final String path) {
     log.debug("getting parameters for path '{}'", path);
-    return new ConfigData(getParameters(path), ttl);
+    return new ConfigData(withPluginClassLoader(() -> getParameters(path)), ttl);
   }
 
   /**
@@ -44,17 +52,35 @@ public class AwsSsmConfigProvider implements ConfigProvider {
    * @param path the path where the data resides (eg., foo=${aws-ssm:kafka_connect})
    * @param keys the keys whose values will be retrieved (blah1, blah2)
    * @return the ConfigData containing the keys and values
+   * @throws ConfigException if any of the keys is not found
    */
   @Override
   public ConfigData get(final String path, final Set<String> keys) {
 
     log.debug("getting ALL parameters for path '{}'", path);
-    final ConfigData allData = get(path);
+    final Map<String, String> allData = withPluginClassLoader(() -> getParameters(path));
 
     log.debug("filtering parameters at path '{}' to only include {} keys: ({})", path, keys.size(), keys);
     final Map<String, String> values = new HashMap<>();
+    final Set<String> missing = new TreeSet<>();
     for (final String key : keys) {
-      values.put(key, allData.data().get(key));
+      final String value = allData.get(key);
+      if (value == null) {
+        missing.add(key);
+      } else {
+        values.put(key, value);
+      }
+    }
+
+    // without this, Connect leaves the literal ${ssm:...} placeholder in the config
+    if (!missing.isEmpty()) {
+      throw new ConfigException(String.format(
+        "SSM parameter(s) %s not found for path '%s' (environment '%s', addEnvironmentPrefix=%s)",
+        missing,
+        path,
+        environment,
+        addEnvironmentPrefix
+      ));
     }
 
     log.debug(
@@ -77,8 +103,15 @@ public class AwsSsmConfigProvider implements ConfigProvider {
 
   @Override
   public void configure(final Map<String, ?> map) {
+    withPluginClassLoader(() -> {
+      doConfigure(map);
+      return null;
+    });
+  }
 
-    log.trace("configuring SSM ConfigProvider with map: {}", map);
+  private void doConfigure(final Map<String, ?> map) {
+
+    log.trace("configuring SSM ConfigProvider with keys: {}", map.keySet());
 
     if (ssmClient == null) {
 
@@ -92,6 +125,15 @@ public class AwsSsmConfigProvider implements ConfigProvider {
         final String region = configRegion.toString();
         builder.region(Region.of(region));
       }
+
+      // IRSA (web identity) needs the sts module on the classpath; without it the
+      // default chain silently skips it and falls back to IMDS, which pods can't reach
+      final AwsCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
+      checkCredentials(credentialsProvider);
+      builder.credentialsProvider(credentialsProvider);
+
+      // be explicit so the SDK doesn't have to discover an HTTP client via ServiceLoader
+      builder.httpClientBuilder(ApacheHttpClient.builder());
 
       ssmClient = builder.build();
     }
@@ -115,6 +157,44 @@ public class AwsSsmConfigProvider implements ConfigProvider {
       log.info("configuring SSM ConfigProvider for environment: '{}'", environment);
     }
 
+  }
+
+  /**
+   * Resolve credentials once at startup so a broken setup shows up in the worker log
+   * right away. This only logs: throwing here would stop the whole Connect worker, not
+   * just the connectors that use ${ssm:...}.
+   */
+  private void checkCredentials(final AwsCredentialsProvider credentialsProvider) {
+    final String roleArn = System.getenv("AWS_ROLE_ARN");
+    try {
+      credentialsProvider.resolveCredentials();
+      log.info(
+        "SSM ConfigProvider resolved AWS credentials using {}",
+        roleArn != null ? "role " + roleArn : "the default credential chain"
+      );
+    } catch (final SdkException e) {
+      log.error(
+        "SSM ConfigProvider could not resolve AWS credentials (AWS_ROLE_ARN={}); "
+          + "connectors using ${ssm:...} will fail: {}",
+        roleArn,
+        e.getMessage()
+      );
+    }
+  }
+
+  /**
+   * Connect calls providers from worker threads whose context class loader is not the
+   * plugin's, while the AWS SDK discovers implementations via the context class loader.
+   */
+  private <T> T withPluginClassLoader(final Supplier<T> action) {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader original = thread.getContextClassLoader();
+    thread.setContextClassLoader(AwsSsmConfigProvider.class.getClassLoader());
+    try {
+      return action.get();
+    } finally {
+      thread.setContextClassLoader(original);
+    }
   }
 
   private Map<String, String> getParameters(final String path) {
@@ -149,7 +229,8 @@ public class AwsSsmConfigProvider implements ConfigProvider {
           });
       }
 
-    log.trace("parameters: {}", parameters);
+    // values are decrypted secrets, so only ever log the names
+    log.trace("parameter names: {}", parameters.keySet());
 
     return parameters;
 

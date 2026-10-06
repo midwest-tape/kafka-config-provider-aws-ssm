@@ -1,183 +1,227 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.hoopladigital</groupId>
-  <artifactId>kafka-config-provider-aws-ssm</artifactId>
-  <version>1.2.0-SNAPSHOT</version>
+    <groupId>com.hoopladigital</groupId>
+    <artifactId>kafka-config-provider-aws-ssm</artifactId>
+    <version>1.3.0</version>
 
-  <name>kafka-config-provider-aws-ssm</name>
-  <description>A Kafka ConfigProvider plugin for getting data from the AWS SSM parameter store.</description>
+    <name>kafka-config-provider-aws-ssm</name>
+    <description>A Kafka ConfigProvider plugin for getting data from the AWS SSM parameter store.</description>
 
-  <url>https://www.hoopladigital.com</url>
-  <inceptionYear>2023</inceptionYear>
+    <url>https://www.hoopladigital.com</url>
+    <inceptionYear>2023</inceptionYear>
 
-  <licenses>
-    <license>
-      <name>The Apache License, Version 2.0</name>
-      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
-  <developers>
-    <developer>
-      <id>lmeadors</id>
-      <name>Larry Meadors</name>
-      <url>https://github.com/lmeadors</url>
-      <roles>
-        <role>Committer</role>
-      </roles>
-    </developer>
-  </developers>
+    <developers>
+        <developer>
+            <id>lmeadors</id>
+            <name>Larry Meadors</name>
+            <url>https://github.com/lmeadors</url>
+            <roles>
+                <role>Committer</role>
+            </roles>
+        </developer>
+    </developers>
 
-  <scm>
-    <connection>scm:git:https://github.com/midwest-tape/kafka-config-provider-aws-ssm.git</connection>
-    <url>https://github.com/midwest-tape/kafka-config-provider-aws-ssm</url>
-  </scm>
+    <scm>
+        <connection>scm:git:https://github.com/midwest-tape/kafka-config-provider-aws-ssm.git</connection>
+        <url>https://github.com/midwest-tape/kafka-config-provider-aws-ssm</url>
+    </scm>
 
-  <issueManagement>
-    <system>github</system>
-    <url>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues</url>
-  </issueManagement>
+    <issueManagement>
+        <system>github</system>
+        <url>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues</url>
+    </issueManagement>
 
-  <dependencyManagement>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-bom</artifactId>
+                <version>4.8.0</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>2.29.39</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>5.9.1</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-bom</artifactId>
-        <version>4.8.0</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>software.amazon.awssdk</groupId>
-        <artifactId>bom</artifactId>
-        <version>2.29.39</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>5.9.1</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ssm</artifactId>
+            <exclusions>
+                <!-- only the sync client is used; keep a single HTTP implementation -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- required for IRSA (web identity credentials) on EKS -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apache-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-api</artifactId>
+            <version>4.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
-  </dependencyManagement>
-  <dependencies>
 
-    <dependency>
-      <groupId>software.amazon.awssdk</groupId>
-      <artifactId>ssm</artifactId>
-    </dependency>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <inherited>true</inherited>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
 
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <version>1.18.24</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>connect-api</artifactId>
-      <version>3.3.1</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-  </dependencies>
-
-  <build>
-
-    <plugins>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
-        <inherited>true</inherited>
-        <configuration>
-          <source>11</source>
-          <target>11</target>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>io.confluent</groupId>
-        <artifactId>kafka-connect-maven-plugin</artifactId>
-        <version>0.11.2</version>
-        <executions>
-          <execution>
-            <id>hub</id>
-            <goals>
-              <goal>kafka-connect</goal>
-            </goals>
-            <configuration>
-              <ownerName>Larry Meadors</ownerName>
-              <ownerUsername>hoopladigital</ownerUsername>
-              <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
-              <documentationUrl>
-                https://github.com/midwest-tape/kafka-config-provider-aws-ssm
-              </documentationUrl>
-              <componentTypes>
-                <componentType>converter</componentType>
-              </componentTypes>
-              <tags>
-                <tag>aws</tag>
-                <tag>ssm</tag>
-              </tags>
-              <title>Kafka AWS SSM Config Provider</title>
-              <supportUrl>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues</supportUrl>
-              <supportSummary>Community Support</supportSummary>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-    </plugins>
-
-  </build>
+            <plugin>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-connect-maven-plugin</artifactId>
+                <version>0.12.0</version>
+                <executions>
+                    <execution>
+                        <id>hub</id>
+                        <goals>
+                            <goal>kafka-connect</goal>
+                        </goals>
+                        <configuration>
+                            <ownerName>Larry Meadors</ownerName>
+                            <ownerUsername>hoopladigital</ownerUsername>
+                            <confluentControlCenterIntegration>true</confluentControlCenterIntegration>
+                            <documentationUrl>
+                                https://github.com/midwest-tape/kafka-config-provider-aws-ssm
+                            </documentationUrl>
+                            <componentTypes>
+                                <componentType>converter</componentType>
+                            </componentTypes>
+                            <tags>
+                                <tag>aws</tag>
+                                <tag>ssm</tag>
+                            </tags>
+                            <title>Kafka AWS SSM Config Provider</title>
+                            <supportUrl>https://github.com/midwest-tape/kafka-config-provider-aws-ssm/issues
+                            </supportUrl>
+                            <supportSummary>Community Support</supportSummary>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>connect-plugin</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/assembly/connect-plugin.xml</descriptor>
+                            </descriptors>
+                            <appendAssemblyId>true</appendAssemblyId>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
 
-<distributionManagement>
-    <repository>
-        <id>code-artifact-mwt</id>
-        <name>code-artifact-mwt</name>
-        <url>https://mwt-code-414026808987.d.codeartifact.us-east-1.amazonaws.com/maven/mwt/</url>
-    </repository>
-</distributionManagement>
+        </plugins>
 
-  <!-- I THINK this is needed for some plugins. -->
-  <repositories>
-    <repository>
-      <id>confluent</id>
-      <url>https://packages.confluent.io/maven/</url>
-    </repository>
-  </repositories>
+    </build>
+
+
+    <distributionManagement>
+        <repository>
+            <id>code-artifact-mwt</id>
+            <name>code-artifact-mwt</name>
+            <url>https://mwt-code-414026808987.d.codeartifact.us-east-1.amazonaws.com/maven/mwt/</url>
+        </repository>
+    </distributionManagement>
+
+    <!-- I THINK this is needed for some plugins. -->
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
 
 </project>
