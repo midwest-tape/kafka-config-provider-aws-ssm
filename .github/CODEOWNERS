@@ -1,4 +1,4 @@
 # Who reviews changes to this repository. The `*` line names the teams whose work the whole
 # repository is; a later line wins for the paths it matches. See Repository Access in the
 # engineering standards.
-*               @midwest-tape/foundation-streaming-integration-estate
+*               @midwest-tape/foundation-streaming-and-integration
